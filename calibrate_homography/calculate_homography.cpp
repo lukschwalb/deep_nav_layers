@@ -15,6 +15,7 @@ private:
   int costmap_height, costmap_width;
   float m_per_pixel;
   string homography_file_path;
+  string seg_data_path;
   
 public:
   /*
@@ -31,6 +32,7 @@ public:
     fs["costmap_width"] >> costmap_width;
     fs["m_per_pixel"] >> m_per_pixel;
     fs["homography_file_path"] >> homography_file_path;
+    fs["seg_data_path"] >> seg_data_path;
   }
 
   /*
@@ -62,7 +64,7 @@ public:
       Point2f pt = *it;
       float new_x = origin.x + pt.x/m_per_pixel;
       float new_y = origin.y - pt.y/m_per_pixel; // since greater pixel value means down
-    
+
       assert(new_x < costmap_width && new_y < costmap_height); // check point is valid
     
       costmap_pts.push_back(Point2f(new_x, new_y));
@@ -89,6 +91,8 @@ public:
   */
   void writeHomography(const vector<Point2f> &seg_pts, const vector<Point2f> &costmap_pts)
   {
+    
+
     Mat h = findHomography(seg_pts, costmap_pts);
     cout << "Calculated homography: " << h << endl;
   
@@ -96,6 +100,27 @@ public:
     fs << "homography" << h;
     fs.release();
     cout << "Wrote to file: " << homography_file_path << endl;
+  }
+
+  void drawMapping(vector<Point2f> &seg_pts, const vector<Point2f> &costmap_pts) {
+    Mat mapping;
+    //Mat src = imread(seg_data_path);
+    Mat src = Mat(costmap_height, image_width, CV_32FC3, Vec3b(255, 0, 0));
+    Mat dst = Mat(costmap_height, costmap_width, CV_32FC3, Vec3b(0, 255, 0));
+    hconcat(src, dst, mapping);
+    RNG rng(12345);
+
+    vector<Point2f>::const_iterator it = seg_pts.begin();
+    for (vector<Point2f>::const_iterator it2 = costmap_pts.begin(); it2 != costmap_pts.end(); ++it2) {
+      Point2f seg_pt = *it;
+      Point2f cm_pt = *it2;
+      
+      cm_pt.x += image_width;
+      Scalar random_color(rng.uniform(0,255), rng.uniform(0, 255), rng.uniform(0, 255)); 
+      line(mapping, seg_pt, cm_pt, random_color, 2);
+      it++;
+    }
+    imwrite("mapping.png", mapping);
   }
 
 };
@@ -122,6 +147,8 @@ int main(int argc, char** argv)
   h_calc.coordToCostmap(coord_pts, costmap_pts);
   // calculate the final homography
   h_calc.writeHomography(seg_pts, costmap_pts);
+  //h_calc.drawMapping(seg_pts, costmap_pts);
+
   
   return 0;
 }

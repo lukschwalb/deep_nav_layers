@@ -61,7 +61,7 @@ public:
     resize(warped, scaled_warped, Size(), 5, 5);
 
     imshow("Warped Segmentation Data", warped);
-    imshow("Warped Segmentation Data (scaled)", scaled_warped);
+    //imshow("Warped Segmentation Data (scaled)", scaled_warped);
   }
     
 };
