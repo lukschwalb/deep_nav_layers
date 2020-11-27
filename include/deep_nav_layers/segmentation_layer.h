@@ -37,6 +37,7 @@ private:
   int costmap_height;
   int costmap_width;
   bool new_data;
+  bool rolling_window_;
   cv::Mat warped;
   cv::Mat cropped;
   cv::Mat h;
