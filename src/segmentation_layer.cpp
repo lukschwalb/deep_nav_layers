@@ -33,10 +33,15 @@ void SegmentationLayer::onInitialize()
   nh.param<std::string>("path_ids_str",  path_ids_str, "3"); // zero-indexed ID to clear obstacles
   nh.param<int>("costmap_width",  costmap_width, 2400); // width of the costmap
   nh.param<int>("costmap_height",  costmap_height, 2400); // height of the costmap
+  nh.param<float>("resize_factor",  resize_factor, 0.2); // factor to resize the costmap size
   nh.param<float>("m_per_pixel",  m_per_pixel, 0.03); // ratio to convert pixels into meters
   nh.param<float>("x_range",  x_range, 300.0); // pixels to the left/right of the bot to modify costmap
   nh.param<float>("y_range",  y_range, 300.0); // pixels in front of the bot to modify costmap
-
+  //m_per_pixel *= resize_factor;
+  x_range *= resize_factor;
+  y_range *= resize_factor;
+  
+  
 
   std::string path_homography = ros::package::getPath("deep_nav_layers") + "/calibrate_homography/" + file_homography;
 
@@ -74,6 +79,7 @@ void SegmentationLayer::parseIntSet(const std::string &raw_list, std::set<int> &
     int_set.insert(i);
 
     if (ss.peek() == ' ')
+      return;
       ss.ignore();
   }
 }
@@ -92,13 +98,15 @@ void SegmentationLayer::segNetCb(const sensor_msgs::Image::ConstPtr &msg)
     }
 
   cv::warpPerspective(cv_ptr->image, warped, h, cv::Size(costmap_width, costmap_height));
+
+  cv::resize(warped, resized, cv::Size(), resize_factor, resize_factor);
   
   int x_range_pixels = x_range;///m_per_pixel;
   int y_range_pixels = y_range;///m_per_pixel;
 
   // crop projection to only go a user defined number of meters in x and y direction
-  cv::Rect ROI = cv::Rect(warped.cols/2 - x_range_pixels, warped.rows/2 - y_range_pixels, x_range_pixels*2, y_range_pixels*2);
-  cropped = cv::Mat(warped, ROI); // note that this is just a reference
+  cv::Rect ROI = cv::Rect(resized.cols/2 - x_range_pixels, resized.rows/2 - y_range_pixels, x_range_pixels*2, y_range_pixels*2);
+  cropped = cv::Mat(resized, ROI); // note that this is just a reference
 
   new_data = true;
 }
@@ -140,29 +148,31 @@ void SegmentationLayer::updateBounds(double robot_x, double robot_y, double robo
 
   cv::warpAffine(cropped, overlay, rotation_matrix, cropped.size());
   cv::Point2f origin = cv::Point2f(overlay.cols/2, overlay.rows/2);
-  
+  cv::circle(overlay, origin, 35, cv::Scalar(255,255,255),CV_FILLED, 8,0);
+
+  float fac = 1/resize_factor;
   for(int y=0; y<overlay.rows; y++){
       for(int x=0; x<overlay.cols; x++){
         int value = overlay.at<unsigned char>(cv::Point(x,y));
         if (obstacle_ids.find(value) != obstacle_ids.end()) {
           // shift over point so origin of image is at (0,0)
-          double mark_x = robot_x + (x - origin.x)*m_per_pixel;
-          double mark_y = robot_y + (origin.y - y)*m_per_pixel;
+          double mark_x = robot_x + (x - origin.x)*fac*m_per_pixel;
+          double mark_y = robot_y + (origin.y - y)*fac*m_per_pixel;
 
           unsigned int mx, my;
           
 
           if(worldToMap(mark_x, mark_y, mx, my)){
-            setCost(mx, my, LETHAL_OBSTACLE);
+            //setCost(mx, my, LETHAL_OBSTACLE);
+            //setCost(mx, my, 100);
           }
         }
         if (path_ids.find(value) != path_ids.end()) {
-          double mark_x = robot_x + (x - origin.x)*m_per_pixel;
-          double mark_y = robot_y + (origin.y - y)*m_per_pixel;
+          double mark_x = robot_x + (x - origin.x)*fac*m_per_pixel;
+          double mark_y = robot_y + (origin.y - y)*fac*m_per_pixel;
           unsigned int mx, my;
           if(worldToMap(mark_x, mark_y, mx, my)){
             setCost(mx, my, FREE_SPACE);
-            //setCost(mark_x, mark_y, FREE_SPACE);
           }
         }
 
@@ -190,8 +200,8 @@ void SegmentationLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_
     for (int i = min_i; i < max_i; i++)
     {
       int index = getIndex(i, j);
-      if (costmap_[index] == NO_INFORMATION)
-	continue;
+      //if (costmap_[index] == NO_INFORMATION)
+	      //continue;
       master_grid.setCost(i, j, costmap_[index]);
     }
   }

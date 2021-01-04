@@ -34,10 +34,12 @@ private:
   float x_range;
   float y_range;
   float m_per_pixel;
+  float resize_factor;
   int costmap_height;
   int costmap_width;
   bool new_data;
   bool rolling_window_;
+  cv::Mat resized;
   cv::Mat warped;
   cv::Mat cropped;
   cv::Mat h;
