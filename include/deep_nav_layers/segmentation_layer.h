@@ -11,6 +11,13 @@
 #include <opencv2/opencv.hpp>
 #include <sensor_msgs/Image.h>
 
+//#define DEBUG_IMAGES
+#ifdef DEBUG_IMAGES
+#  define ImageDebug(NAME, IMG) (cv::imwrite(NAME, IMG));
+#else
+#  define ImageDebug(NAME, IMG) NULL;
+#endif // DEBUG
+
 namespace segmentation_layer
 {
 
@@ -28,23 +35,31 @@ public:
   virtual void matchSize();
 
 private:
-  Costmap2D* master;
+  // The maximum range in each direction in meter
   float x_range;
   float y_range;
+
+  // Ratio to convert pixels from the img to meters
   float m_per_pixel;
-  float resize_factor;
   int warp_width;
   int warp_height;
-  bool clear_only;
-  bool new_data;
-  bool rolling_window_;
-  cv::Mat scaled;
-  cv::Mat h;
-  ros::Subscriber seg_sub_;
+
+  ros::Subscriber img_sub;
+
+  bool rolling_window;
+  double resolution; // Resolution of the master costmap
+  bool new_data; // Indicates new data for a map update
+  bool map_ready; // Indicates the master costmap is resized
+
+  float img_size_x_meter, img_size_y_meter; // Maximum x_range based on the img size
+  cv::Size costmap_size;
+
+  cv::Mat scaled; // Scaled version of input image, measurements already match resolution
+  cv::Mat h; // Homography matrix
+
   void reconfigureCB(costmap_2d::GenericPluginConfig &config, uint32_t level);
   dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig> *dsrv_;
   void segNetCb(const sensor_msgs::Image::ConstPtr &msg);
-  void parseHomographyConstants(const std::string &homography_folder);
 };
 }
 #endif
