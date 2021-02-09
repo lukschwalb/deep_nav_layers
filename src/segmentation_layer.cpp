@@ -21,10 +21,10 @@ SegmentationLayer::SegmentationLayer() {}
 
 void SegmentationLayer::onInitialize() {
   std::string segmentation_data;
-  std::string file_homography;
+  std::string path_homography;
 
   ros::NodeHandle nh("~/" + name_);
-  nh.getParam("file_homography",  file_homography); // Filename of the homography matrix
+  nh.getParam("path_homography",  path_homography); // Full path to the homography matrix
   nh.param<std::string>("segmentation_data",  segmentation_data, "/tinycar/road_segmentation");
   nh.param<int>("warp_width",  warp_width, 2400); // width of the costmap
   nh.param<int>("warp_height",  warp_height, 2400); // height of the costmap
@@ -33,8 +33,6 @@ void SegmentationLayer::onInitialize() {
   nh.param<float>("y_range",  y_range, 30.0); // meters in front of the bot to modify costmap
 
   current_ = true;
-
-  std::string path_homography = ros::package::getPath("deep_nav_layers") + "/calibrate_homography/" + file_homography;
 
   new_data = false;
   map_ready = false;
